@@ -1,0 +1,26 @@
+#!/bin/sh -eu
+
+# For testing only !!
+#RENEWED_DOMAINS="klok.sidnlabs.nl"
+
+# If the certificate being deployed is not the one for klok.sidnlabs.nl, exit.
+found=0
+for domain in $RENEWED_DOMAINS
+do
+    if [ "$domain" = "klok.sidnlabs.nl" ]
+    then
+        found=1
+    fi
+done
+if [ "$found" = "0" ]
+then
+    exit 0
+fi
+
+# Copy the certificate (including chain) and key so uhrserver can read them after dropping privileges.
+install -m 644 -o rndtools -g sidn /etc/letsencrypt/live/klok.sidnlabs.nl/fullchain.pem /home/uhr/fullchain.pem
+install -m 640 -o rndtools -g sidn /etc/letsencrypt/live/klok.sidnlabs.nl/privkey.pem /home/uhr/privkey.pem
+
+
+# Restart uhrserver
+systemctl restart uhrserver
