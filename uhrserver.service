@@ -1,0 +1,14 @@
+[Unit]
+Description=SIDN Labs Station Clock
+#After=network.target apache2.service
+
+[Service]
+WorkingDirectory=/home/uhr
+ExecStart=/home/uhr/uhrserver
+Restart=always
+RestartSec=5
+User=rndtools
+Group=rndtools
+
+[Install]
+WantedBy=multi-user.target
