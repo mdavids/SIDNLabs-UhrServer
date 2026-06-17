@@ -1,7 +1,7 @@
 // UhrServer
 //
 // Made by SIDN Labs (Marco Davids)
-// An uhr.ptb.de reversed engineerd back-end
+// An uhr.ptb.de reversed engineerd back-end before actually reading https://uhr.ptb.de/wst/paper
 //
 // Implements a secure, real-time WebSocket time service.
 // It performs an NTP query on every client request to ensure the time
