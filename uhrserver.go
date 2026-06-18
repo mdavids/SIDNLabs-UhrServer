@@ -76,26 +76,28 @@ type ServerResponse struct {
 
 // queryTimeStatus queries the given NTP host for the synchronized time and leap status.
 // It is called for every client request to ensure the time is as recent as possible.
-func queryTimeStatus(host string) (time.Time, uint8) {
+func queryTimeStatus(host string) (time.Time, time.Duration, uint8) {
 	// A placeholder time (local clock) and the safest default status.
 	// Used if the NTP query fails.
 	t := time.Now()
-	status := uint8(LeapNoWarning) 
+	var d time.Duration = 0
+	status := uint8(LeapNoWarning)
 
 	// 5-second timeout for the NTP query
 	r, err := ntp.QueryWithOptions(host, ntp.QueryOptions{Timeout: 5 * time.Second})
 	if err != nil {
 		log.Printf("ERROR: Failed to retrieve time/status from %s: %v. Using local clock and LeapNoWarning.", host, err)
 		// On error, return the local time (best effort) and default status.
-		return t, status 
+		return t, d, status
 	}
 
 	// Successfully retrieved time and status
 	t = r.Time // The time reported by the server, corrected by the local offset.
-	
+	d = r.RootDelay
+
 	// Explicit type conversion (uint8) is necessary here to fix the compile error,
 	// as r.Leap is of type ntp.LeapIndicator.
-	status = uint8(r.Leap) 
+	status = uint8(r.Leap)
 
 	// Log announcements, but only for Add/DelSecond, otherwise it floods the log.
 	switch status {
@@ -110,7 +112,7 @@ func queryTimeStatus(host string) (time.Time, uint8) {
 		status = uint8(LeapNoWarning)
 	}
 
-	return t, status
+	return t, d, status
 }
 
 // serveWs handles the WebSocket connection for the /time endpoint.
@@ -148,18 +150,21 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 			// Skip this message, but keep the connection alive
 			continue
 		}
-		
+
 		// 2. IMPORTANT: Perform NTP query immediately upon receiving the client request.
-		syncedTime, leap := queryTimeStatus(DefaultNTPHost)
+		syncedTime, rootDelay, leap := queryTimeStatus(DefaultNTPHost)
 
 		// Calculate the number of milliseconds since the Unix Epoch from the synchronized time.
 		millis := float64(syncedTime.UnixNano()) / float64(time.Millisecond)
+
+		// Convert the RootDelay duration to seconds and divide by 2 for the 'e' parameter
+		rootDelaySeconds := rootDelay.Seconds()
 
 		// 3. Construct and serialize response
 		response := ServerResponse{
 			C: clientMsg.C,
 			S: millis,
-			E: 0.000,
+			E: rootDelaySeconds,
 			L: leap,
 		}
 
@@ -182,8 +187,8 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile) 
-    
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
     // NOTE: The monitorTimeStatus goroutine is REMOVED, as per user request.
 
 	// Set up HTTP handlers
