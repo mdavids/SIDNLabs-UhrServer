@@ -158,7 +158,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		millis := float64(syncedTime.UnixNano()) / float64(time.Millisecond)
 
 		// Convert the RootDelay duration to seconds and divide by 2 for the 'e' parameter
-		rootDelaySeconds := rootDelay.Seconds()
+		rootDelaySeconds := rootDelay.Seconds() / 2.0
 
 		// 3. Construct and serialize response
 		response := ServerResponse{
