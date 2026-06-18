@@ -49,7 +49,21 @@ var addr = flag.String("addr", ":8123", "HTTP service address (e.g., :8123)")
 // upgrader is configured for upgrading HTTP connections to WebSocket connections.
 var upgrader = websocket.Upgrader{
 	// Allowing cross-origin for testing/development. Should be hardened for production.
-	CheckOrigin: func(r *http.Request) bool { return true },
+	// CheckOrigin: func(r *http.Request) bool { return true },
+	// Hardened:
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+
+		allowedOrigins := map[string]bool{
+			"https://clock.example.org:8123": true,
+			"https://example.nl":               true,
+		}
+
+		allowed := allowedOrigins[origin]
+		log.Printf("WebSocket Origin: %q allowed=%v", origin, allowed)
+
+		return allowed
+	},
 }
 
 // --- DATA STRUCTURES ---
