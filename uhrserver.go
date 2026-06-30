@@ -203,8 +203,6 @@ func main() {
 	flag.Parse()
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
-    // NOTE: The monitorTimeStatus goroutine is REMOVED, as per user request.
-
 	// Set up HTTP handlers
 	http.HandleFunc("/time", serveWs)
 	// Serve static files from the current directory (e.g., an index.html for testing).
@@ -212,12 +210,18 @@ func main() {
 
 	log.Printf("Server starting on %s. Use wss://%s/time for connection.", *addr, *addr)
 
-	// The server requires valid TLS certificates to run securely (recommended for WebSockets: wss://).
-	// NOTE: Update these paths to your actual certificate locations!
-	err := http.ListenAndServeTLS(*addr,
+	// Explicitly configure the HTTP server to fix gosec G112 (Slowloris vulnerability)
+	server := &http.Server{
+		Addr:              *addr,
+		Handler:           nil, // nil defaults to http.DefaultServeMux
+		ReadHeaderTimeout: 3 * time.Second, // Mitigates G112 by limiting header read time
+	}
+
+	// Start the server using TLS with the custom configuration
+	err := server.ListenAndServeTLS(
 		"/home/uhr/fullchain.pem",
 		"/home/uhr/privkey.pem",
-		nil)
+	)
 
 	if err != nil {
 		log.Fatalf("Server failed to start: %v", err)
